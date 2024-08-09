@@ -1,1 +1,49 @@
 
+name: PaddleOCR-json FastAPI Server
+
+on: [push, pull_request, workflow_dispatch]
+
+jobs:
+  setup-and-serve:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout PaddleOCR-json
+      uses: actions/checkout@v2
+      with:
+        repository: hiroi-sora/PaddleOCR-json
+        path: PaddleOCR-json
+
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.8' # You can set your desired Python version
+
+    - name: Install FastAPI and Uvicorn
+      run: |
+        python -m pip install fastapi uvicorn
+
+    - name: Download PaddleOCR-json Release Asset
+      run: |
+        wget https://github.com/hiroi-sora/PaddleOCR-json/releases/download/v1.4.1-dev/PaddleOCR-json_v1.4.1_dev.1_debian_x86-64_cpu_mkl.tar.xz -O PaddleOCR-json.tar.xz
+        tar -xf PaddleOCR-json.tar.xz
+        echo "PADDLE_OCR_PATH=$(pwd)/PaddleOCR-json" >> $GITHUB_ENV
+
+    - name: Move to Python API Directory
+      run: |
+        cd PaddleOCR-json/api/python
+        echo "PYTHON_API_PATH=$(pwd)" >> $GITHUB_ENV
+
+    - name: Start FastAPI Server
+      run: |
+        uvicorn main:app --host 0.0.0.0 --port 8000
+      env:
+        PADDLE_OCR_EXE_PATH: ${{ env.PADDLE_OCR_PATH }}/PaddleOCR-json.run.sh
+      working-directory: ${{ env.PYTHON_API_PATH }}
+
+    - name: Check Server Status
+      run: |
+        curl -X GET http://localhost:8000
+
+# Note: The above workflow assumes that you have a FastAPI application defined in a file named `main.py`
+# within the `PaddleOCR-json/api/python` directory, and that this app is named `app`.
